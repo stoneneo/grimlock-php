@@ -10,7 +10,6 @@ use Grimlock\Module\RestClient\Bean\GrimlockHeader;
 use Grimlock\Module\RestClient\Bean\GrimlockResponse;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Psr7\Request;
 
 /**
  *
@@ -23,11 +22,12 @@ class GrimlockRestClient
     private GrimlockList $headers;
     private Client $client;
 
-    public function __construct(string $baseUri, int $timeout = 2)
+    public function __construct(string $baseUri, int $timeout = 2, bool $sslEnabled = true)
     {
         $this->client = new Client([
             'base_uri' => $baseUri,
             'timeout' => $timeout,
+            'verify' => $sslEnabled,
         ]);
         $this->baseUri = $baseUri;
         $this->timeout = $timeout;
@@ -45,14 +45,14 @@ class GrimlockRestClient
     /**
      * @throws GrimlockException
      */
-    private function addRequestHeaders(Request &$request): void
-    {
-        $request->withHeader('Content-Type', 'application/json');
-        $request->withHeader('Accept', 'application/json');
+    private function getHeaders(): array {
+        $headers = array();
         for ($i = 0; $i < $this->headers->getSize(); $i++)
         {
-            $request->withHeader($this->headers->getItem($i)->getName(), $this->headers->getItem($i)->getValue());
+            $headers[$this->headers->getItem($i)->getName()] = $this->headers->getItem($i)->getValue();
         }
+
+        return $headers;
     }
 
     /**
@@ -61,11 +61,10 @@ class GrimlockRestClient
     public function get(string $uri, array $query = array()): GrimlockResponse
     {
         try {
-            $request = new Request('GET', $this->baseUri . $uri);
-            $this->addRequestHeaders($request);
-            $response = $this->client->send($request, [
+            $response = $this->client->request('GET', $this->baseUri . $uri, [
+                'headers' => $this->getHeaders(),
                 'query' => $query,
-                'timeout' => $this->timeout,
+                'timeout' => $this->timeout
             ]);
             return GrimlockResponse::create($response);
         } catch (Exception $e) {
@@ -81,8 +80,9 @@ class GrimlockRestClient
     public function post(string $uri, array $body): GrimlockResponse
     {
         try {
-            $response = $this->client->request('POST', $uri,[
-                'json' => $body
+            $response = $this->client->request('POST', $this->baseUri . $uri, [
+               'headers' => $this->getHeaders(),
+               'json' => $body
             ]);
             return GrimlockResponse::create($response);
         } catch (Exception $e) {
@@ -98,7 +98,8 @@ class GrimlockRestClient
     public function put(string $uri, array $body): GrimlockResponse
     {
         try {
-            $response = $this->client->request('PUT', $uri,[
+            $response = $this->client->request('PUT', $this->baseUri . $uri, [
+                'headers' => $this->getHeaders(),
                 'json' => $body
             ]);
             return GrimlockResponse::create($response);

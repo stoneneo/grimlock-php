@@ -6,6 +6,10 @@ use Exception;
 use Firebase\JWT\JWT;
 use Grimlock\Core\Exception\GrimlockException;
 use Grimlock\Core\JWT\Transfer\GrimlockJWTResponse;
+use JimTools\JwtAuth\Decoder\FirebaseDecoder;
+use JimTools\JwtAuth\Middleware\JwtAuthentication;
+use JimTools\JwtAuth\Options;
+use JimTools\JwtAuth\Secret;
 
 /**
  *
@@ -40,18 +44,18 @@ class GrimlockJWT
     }
 
     /**
-     * @param string $jwt
-     * @return bool
-     * @throws GrimlockException
+     * @return JwtAuthentication
      */
-    public static function validateJWT(string $jwt): bool
+    public static function validateJWT(): JwtAuthentication
     {
-        try {
-            JWT::decode($jwt, $_ENV['JWT_KEY'], [$_ENV['JWT_ALG']]);
+        return new JwtAuthentication(new Options(), new FirebaseDecoder(new Secret($_ENV['JWT_KEY'], $_ENV['JWT_ALG'])));
+        /*try {
+            //JWT::decode($jwt, $_ENV['JWT_KEY'], [$_ENV['JWT_ALG']]);
+            $jwt = new JwtAuthentication(new Options(), new FirebaseDecoder(new Secret($_ENV['JWT_KEY'], $_ENV['JWT_ALG'])));
             return true;
         } catch (Exception $e) {
             throw new GrimlockException(GrimlockJWT::class,'Forbidden: you are not authorized.');
-        }
+        }*/
     }
 
 }

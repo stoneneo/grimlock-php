@@ -3,7 +3,6 @@
 namespace Grimlock\Core\Factory;
 
 use Grimlock\Core\Exception\GrimlockException;
-use Grimlock\Module\Notification\Whatsapp\GrimlockWhatsapp;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PDO;
 
@@ -20,23 +19,23 @@ class GrimlockFactoryBD
     {
         if (empty($_ENV['DB_DRIVER']) || $_ENV['DB_DRIVER'] == '')
         {
-            throw new GrimlockException(GrimlockWhatsapp::class,  'Key DB_DRIVER not found or empty');
+            throw new GrimlockException(GrimlockFactoryBD::class,  'Key DB_DRIVER not found or empty');
         }
         if (empty($_ENV['DB_HOST']) || $_ENV['DB_HOST'] == '')
         {
-            throw new GrimlockException(GrimlockWhatsapp::class,  'Key DB_HOST not found or empty');
+            throw new GrimlockException(GrimlockFactoryBD::class,  'Key DB_HOST not found or empty');
         }
         if (empty($_ENV['DB_NAME']) || $_ENV['DB_NAME'] == '')
         {
-            throw new GrimlockException(GrimlockWhatsapp::class,  'Key DB_NAME not found or empty');
+            throw new GrimlockException(GrimlockFactoryBD::class,  'Key DB_NAME not found or empty');
         }
         if (empty($_ENV['DB_USER']) || $_ENV['DB_USER'] == '')
         {
-            throw new GrimlockException(GrimlockWhatsapp::class,  'Key DB_USER not found or empty');
+            throw new GrimlockException(GrimlockFactoryBD::class,  'Key DB_USER not found or empty');
         }
         if (empty($_ENV['DB_PASS']) || $_ENV['DB_PASS'] == '')
         {
-            throw new GrimlockException(GrimlockWhatsapp::class,  'Key DB_PASS not found or empty');
+            throw new GrimlockException(GrimlockFactoryBD::class,  'Key DB_PASS not found or empty');
         }
         $manager = new Capsule;
         $manager->addConnection([

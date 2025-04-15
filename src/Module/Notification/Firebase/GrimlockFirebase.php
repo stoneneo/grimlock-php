@@ -2,12 +2,13 @@
 
 namespace Grimlock\Module\Notification\Firebase;
 
+use Google\Auth\Credentials\ServiceAccountCredentials;
 use Grimlock\Core\Exception\GrimlockException;
-use Grimlock\Core\Util\GrimlockList;
+use Grimlock\Core\Log\Enum\LevelLog;
+use Grimlock\Core\Log\GrimlockLog;
 use Grimlock\Module\Notification\Firebase\Bean\Notification;
 use Grimlock\Module\Notification\Firebase\Bean\Person;
-use Grimlock\Module\Notification\Whatsapp\GrimlockWhatsapp;
-use Grimlock\Module\WebClient\GrimlockRestClient;
+use Grimlock\Module\RestClient\GrimlockRestClient;
 
 use Exception;
 
@@ -17,22 +18,70 @@ use Exception;
 class GrimlockFirebase
 {
 
-    private string $firebaseKey;
+    private string $firebaseProject;
+
+    private GrimlockLog $grimlockLog;
     private GrimlockRestClient $restClient;
+
+    private ServiceAccountCredentials $googleCredentials;
 
     /**
      * @throws GrimlockException
      */
     public function __construct()
     {
-        if (empty($_ENV['FCM_KEY']) || $_ENV['FCM_KEY'] == '')
+        if (empty($_ENV['FCM_PROJECT_ID']) || $_ENV['FCM_PROJECT_ID'] == '')
         {
-            throw new GrimlockException(GrimlockWhatsapp::class,  'Firebase Cloud Messaging Key [FCM_KEY] not found or empty');
+            throw new GrimlockException(GrimlockFirebase::class,  'Firebase Cloud Messaging Key [FCM_PROJECT_ID] not found or empty');
         }
-        $this->firebaseKey = $_ENV['FCM_KEY'];
-        $this->restClient = new GrimlockRestClient("https://fcm.googleapis.com");
-        $this->restClient->addHeader('Authorization', 'key='.$this->firebaseKey);
+        //Get Google Firebase Access Token
+        $serviceAccountFile = __DIR__ . '/../../../../../../../resources/firebase.json';
+        $scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
+        $this->googleCredentials = new ServiceAccountCredentials($scopes, $serviceAccountFile);
+        $token = $this->googleCredentials->fetchAuthToken();
+        $accessToken = $token['access_token'];
+
+        //Create Rest Client
+        $this->firebaseProject = $_ENV['FCM_PROJECT_ID'];
+        $this->restClient = new GrimlockRestClient("https://fcm.googleapis.com",2);
         $this->restClient->addHeader('Content-Length', '0');
+        $this->restClient->addHeader('Authorization', 'Bearer ' . $accessToken);
+
+        //Enabled Log
+        $this->grimlockLog = new GrimlockLog(LevelLog::Info);
+    }
+
+    /**
+     * @param Notification $notification
+     * @return bool
+     * @throws GrimlockException
+     */
+    public function sendNotification(Notification $notification): bool {
+        try {
+            $body = array(
+                'message' => array(
+                    'topic' => $notification->getTopic(),
+                    'notification' => array(
+                        'title' => $notification->getTitle(),
+                        'body' => $notification->getBody()
+                    )
+                )
+            );
+
+            $responseClient = $this->restClient->post('/v1/projects/'.$this->firebaseProject.'/messages:send', $body);
+
+            if ($responseClient->getCode() == 200) {
+                $this->grimlockLog->info('Notification Push send successfully.');
+                return true;
+            }
+            else {
+                $this->grimlockLog->info('Notification Push send error. ');
+                return false;
+            }
+        } catch (Exception $e) {
+            $this->grimlockLog->error($e->getMessage());
+            throw new GrimlockException(GrimlockFirebase::class, $e->getMessage());
+        }
     }
 
     /**
@@ -41,54 +90,28 @@ class GrimlockFirebase
      * @return bool
      * @throws GrimlockException
      */
-    public function sendNotification(Notification $notification, Person $person): bool
+    public function sendNotificationPerson(Notification $notification, Person $person): bool
     {
         try {
             $body = array(
-                'to' => $person->getIdRegistration(),
+                'token' => $person->getIdRegistration(),
                 'notification' => array(
                     'title' => $notification->getTitle(),
                     'body' => $this->formatMessage($notification->getBody(), $person)
                 )
             );
 
-            $responseClient = $this->restClient->post('/fcm/send', $body);
-            if ($responseClient->getStatusCode() == "200")
+            $responseClient = $this->restClient->post('/v1/projects/'.$this->firebaseProject.'/messages:send', $body);
+            if ($responseClient->getCode() == 200) {
+                $this->grimlockLog->info('Notification Push send successfully.');
                 return true;
-            else
+            }
+            else {
+                $this->grimlockLog->info('Notification Push send error. ');
                 return false;
+            }
         } catch (Exception $e) {
-            throw new GrimlockException(GrimlockFirebase::class, $e->getMessage());
-        }
-    }
-
-    /**
-     * @param Notification $notification
-     * @param GrimlockList $persons
-     * @return bool
-     * @throws GrimlockException
-     */
-    public function sendNotifications(Notification $notification, GrimlockList $persons): bool
-    {
-        try {
-            $idRegistrations = array();
-            for ($i = 0; $i < $persons->getSize(); $i++)
-                $idRegistrations = $persons->getItem($i)->getIdRegistration();
-
-            $body = array(
-                'registration_ids' => array_chunk($idRegistrations, 1000),
-                'notification' => array(
-                    'title' => $notification->getTitle(),
-                    'body' => $notification->getBody()
-                )
-            );
-
-            $responseClient = $this->restClient->post('/fcm/send', $body);
-            if ($responseClient->getStatusCode() == "200")
-                return true;
-            else
-                return false;
-        } catch (Exception $e) {
+            $this->grimlockLog->error($e->getMessage());
             throw new GrimlockException(GrimlockFirebase::class, $e->getMessage());
         }
     }

@@ -6,8 +6,8 @@ use Dompdf\Dompdf;
 use Exception;
 use Grimlock\Core\Exception\GrimlockException;
 use Grimlock\Core\Util\Enumeration;
-use Grimlock\Module\Pdf\Enum\EnumPdfOrientation;
-use Grimlock\Module\Pdf\Enum\EnumPdfSize;
+use Grimlock\Module\Pdf\Enum\PdfOrientation;
+use Grimlock\Module\Pdf\Enum\PdfSize;
 
 /**
  * Class GrimlockPdf
@@ -35,15 +35,15 @@ class GrimlockPdf
      * @return void
      * @throws GrimlockException
      */
-    public function loadHTML(string $pathHTML, string $size = EnumPdfSize::A4, string $orientation = EnumPdfOrientation::VERTICAL): void
+    public function loadHTML(string $pathHTML, string $size = PdfSize::A4->value, string $orientation = PdfOrientation::VERTICAL->value): void
     {
         try {
             if (is_readable($pathHTML)) {
-                if (!Enumeration::contains(EnumPdfSize::class, $size)) {
+                if (!Enumeration::contains(PdfSize::class, $size)) {
                     throw new GrimlockException(GrimlockPdf::class, 'Size PDF not exist');
                 }
 
-                if (!Enumeration::contains(EnumPdfOrientation::class, $orientation)) {
+                if (!Enumeration::contains(PdfOrientation::class, $orientation)) {
                     throw new GrimlockException(GrimlockPdf::class, 'Orientation PDF not exist');
                 }
 
